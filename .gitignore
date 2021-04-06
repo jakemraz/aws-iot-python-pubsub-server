@@ -1,0 +1,13 @@
+
+# python
+__pycache__
+.env
+
+# key
+*.crt
+*.key
+*.pem
+
+# mac
+.DS_Store
+
