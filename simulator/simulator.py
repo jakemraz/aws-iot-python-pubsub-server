@@ -3,6 +3,7 @@ import requests
 import datetime
 import dateutil.parser as dp
 from uuid import uuid4
+import json
 
 """How to use
 
@@ -44,7 +45,7 @@ print(args)
 body = {
 	"topic":"company/hvac/things/1",
 	"payload": {
-        "UUID": uuid4(),
+        "UUID": "30819289-300a-4e49-a475-e33785e818da",
         "type": "hvac",
         "deviceId": "1",
         "dateTime": "2021-03-04T10:23:52+09:00",
@@ -62,12 +63,12 @@ body = {
 """
 
 epochtime = int(convert_to_epoch_time(args.start))
-
+URL = 'http://127.0.0.1:5000/publish'
 for i in range(0, int(args.count)):
     body = {
         "topic":f'company/hvac/things/{args.thing_no}',
         "payload": {
-            "UUID": uuid4(),
+            "UUID": str(uuid4()),
             "type": "hvac",
             "deviceId": args.thing_no,
             "dateTime": convert_to_iso_time(epochtime + i * int(args.interval) * 60),
@@ -83,10 +84,5 @@ for i in range(0, int(args.count)):
         }
     }
     print(body)
-
-
-
-URL = 'http://127.0.0.1:5000'
-#response = requests.post(URL)
-
+    requests.post(URL, json=body)
 
