@@ -57,23 +57,73 @@ def generate_random_data(args):
     }
     return ret
 
-def generate_increase_data(args):
-    pass
+def generate_increase_data(i, args):
+    targetCount = int(args.count) - 1
+    targetHumidity = float(args.target_hum)
+    sensorHumidity = float(args.sensor_hum)
+    targetTemperature = float(args.target_temp)
+    sensorTemperature = float(args.sensor_temp)
 
-def generate_decrease_data(args):
-    pass
+
+    ret = {
+        "topic":f'company/hvac/things/{args.thing_no}',
+        "payload": {
+            "UUID": str(uuid4()),
+            "type": "hvac",
+            "deviceId": args.thing_no,
+            "dateTime": convert_to_iso_time(epochtime + i * int(args.interval) * 60),
+            "targetValue": {
+                "status": args.target_status,
+                "temperature": targetTemperature,
+                "humidity": targetHumidity
+            },
+            "sensorValue": {
+                "temperature": sensorTemperature + (targetTemperature - sensorTemperature) * i / targetCount,
+                "humidity": sensorHumidity + (targetHumidity - sensorHumidity) * i / targetCount,
+            }
+        }
+    }
+    return ret
+
+def generate_decrease_data(i, args):
+    targetCount = int(args.count) - 1
+    targetHumidity = float(args.target_hum)
+    sensorHumidity = float(args.sensor_hum)
+    targetTemperature = float(args.target_temp)
+    sensorTemperature = float(args.sensor_temp)
+
+
+    ret = {
+        "topic":f'company/hvac/things/{args.thing_no}',
+        "payload": {
+            "UUID": str(uuid4()),
+            "type": "hvac",
+            "deviceId": args.thing_no,
+            "dateTime": convert_to_iso_time(epochtime + i * int(args.interval) * 60),
+            "targetValue": {
+                "status": args.target_status,
+                "temperature": targetTemperature,
+                "humidity": targetHumidity
+            },
+            "sensorValue": {
+                "temperature": targetTemperature - (targetTemperature - sensorTemperature) * i / targetCount,
+                "humidity": targetHumidity - (targetHumidity - sensorHumidity) * i / targetCount,
+            }
+        }
+    }
+    return ret
 
 
 
-def generate_data(args):
+def generate_data(i, args):
     if args.pattern == 'constant':
         return generate_constant_data(args)
     if args.pattern == 'random':
         return generate_random_data(args)
     if args.pattern == 'increase':
-        return generate_increase_data(args)
+        return generate_increase_data(i, args)
     if args.pattern == 'decrease':
-        return generate_decrease_data(args)
+        return generate_decrease_data(i, args)
     return generate_random_data(args)
 
 
@@ -138,9 +188,7 @@ body = {
 epochtime = int(convert_to_epoch_time(args.start))
 URL = 'http://127.0.0.1:5000/publish'
 for i in range(0, int(args.count)):
-    body = generate_data(args)
+    body = generate_data(i, args)
     print(body)
     requests.post(URL, json=body)
-
-
 
