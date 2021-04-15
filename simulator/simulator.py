@@ -59,6 +59,8 @@ def generate_random_data(args):
 
 def generate_increase_data(i, args):
     targetCount = int(args.count) - 1
+    if targetCount == 0:
+        targetCount = 1
     targetHumidity = float(args.target_hum)
     sensorHumidity = float(args.sensor_hum)
     targetTemperature = float(args.target_temp)
@@ -87,6 +89,8 @@ def generate_increase_data(i, args):
 
 def generate_decrease_data(i, args):
     targetCount = int(args.count) - 1
+    if targetCount == 0:
+        targetCount = 1
     targetHumidity = float(args.target_hum)
     sensorHumidity = float(args.sensor_hum)
     targetTemperature = float(args.target_temp)
