@@ -7,6 +7,16 @@ import json
 from random import random
 
 
+def convert_to_epoch_time(isotime):
+    t = isotime
+    parsed_t = dp.parse(t)
+    t_in_seconds = parsed_t.strftime('%s')
+    return int(t_in_seconds)
+
+def convert_to_iso_time(epochtime):
+    return datetime.datetime.fromtimestamp(epochtime).astimezone().isoformat()
+
+
 def generate_constant_data(args):
     ret = {
         "topic":f'company/hvac/things/{args.thing_no}',
@@ -50,8 +60,8 @@ def generate_random_data(args):
                 "humidity": float(args.target_hum)
             },
             "sensorValue": {
-                "temperature": int(random()*gapTemperature*10)/10.0 + float(args.sensor_temp),
-                "humidity": int(random()*gapHumidity*10)/10.0 + float(args.sensor_hum)
+                "temperature": float(args.target_temp) + int(random() * 10) - 5,
+                "humidity": float(args.target_hum) + int(random() * 10) - 5
             }
         }
     }
@@ -130,6 +140,36 @@ def generate_data(i, args):
         return generate_decrease_data(i, args)
     return generate_random_data(args)
 
+def add_information(body, recent_body):
+    diffTemperature = abs(body['payload']['targetValue']['temperature'] - body['payload']['sensorValue']['temperature'])
+    diffHumidity = abs(body['payload']['targetValue']['humidity'] - body['payload']['sensorValue']['humidity'])
+    
+    temperature_threshold = 1
+    humidity_threshold = 5
+    symtom_duration_min_threshold = 30
+
+    if recent_body != {} and (diffTemperature >= temperature_threshold or diffHumidity >= humidity_threshold):
+        recent_plugin = recent_body['payload'].get('plugin', None)
+        symtom_start = recent_plugin.get('symtomStart', "") if recent_plugin is not None else ""
+        symtom_start_millis = convert_to_epoch_time(symtom_start) if symtom_start != "" else None
+        cur_millis = convert_to_epoch_time(body['payload']['dateTime'])
+        symtom_duration_min = (cur_millis - symtom_start_millis) / 60 if symtom_start_millis is not None else 0
+        symtom = 1 if symtom_duration_min >= symtom_duration_min_threshold else 0
+    else:
+        symtom = 0
+        symtom_start = ""
+
+    plugin = {
+        'diffTemperature': diffTemperature,
+        'diffHumidity': diffHumidity,
+        'symtom': symtom,
+        'symtomStart': symtom_start if symtom_start != "" else body['payload']['dateTime']
+    }
+
+    body['payload']['plugin'] = plugin
+
+
+
 
 """How to use
 
@@ -138,15 +178,6 @@ $ python3 simulator.py --topic company/hvac/things/ --thing-no 1 --start 2021-03
 This will generate 100 payloads with specified values of 10 minutes intervals from 2021-03-04T10:23:52+09:00 and publish the payloads to the company/hvac/things/1 topic
 
 """
-
-def convert_to_epoch_time(isotime):
-    t = isotime
-    parsed_t = dp.parse(t)
-    t_in_seconds = parsed_t.strftime('%s')
-    return t_in_seconds
-
-def convert_to_iso_time(epochtime):
-    return datetime.datetime.fromtimestamp(epochtime).astimezone().isoformat()
 
 
 parser = argparse.ArgumentParser(description="Simulator")
@@ -184,15 +215,27 @@ body = {
         "sensorValue": {
             "temperature": 23.0,
             "humidity": 45.5
+        },
+
+        "plugin": {
+            "symtom": 0,
+            "symtomStart": "2021-03-04T10:00:52+09:00",
+            "diffTemperature":1.2,
+            "diffHumidity":0.5
         }
     }
 }
 """
 
-epochtime = int(convert_to_epoch_time(args.start))
+epochtime = convert_to_epoch_time(args.start)
 URL = 'http://127.0.0.1:5000/publish'
+
+recent_body = {}
+
 for i in range(0, int(args.count)):
     body = generate_data(i, args)
-    print(body)
-    requests.post(URL, json=body)
+    add_information(body, recent_body)
+    recent_body = body
 
+    #requests.post(URL, json=body)
+    print(body)
