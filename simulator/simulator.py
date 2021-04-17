@@ -25,6 +25,12 @@ def generate_common_data(args):
             "type": "hvac",
             "deviceId": args.thing_no,
             "dateTime": convert_to_iso_time(epochtime + i * int(args.interval) * 60),
+            "customer": args.customer,
+            "branch": args.branch,
+            "geoLocation": {
+                "lat":args.lat,
+                "lon":args.lon
+            },
             "targetValue": {
                 "status": args.target_status,
                 "temperature": float(args.target_temp),
@@ -135,7 +141,7 @@ def add_plugin(body, recent_body):
 
 """How to use
 
-$ python3 simulator.py --topic company/hvac/things/ --thing-no 1 --start 2021-03-04T10:23:52+09:00 --count 100 --interval 10 --target-status cold --target-temp 23.0 --target-hum 69.0 --sensor-temp 22.5 --sensor-hum 68.0
+$ python3 simulator.py --topic company/hvac/things/ --thing-no 1 --start 2021-03-04T10:23:52+09:00 --count 100 --interval 10 --target-status cold --target-temp 23.0 --target-hum 69.0 --sensor-temp 22.5 --sensor-hum 68.0 --pattern random --random-factor 1
 
 This will generate 100 payloads with specified values of 10 minutes intervals from 2021-03-04T10:23:52+09:00 and publish the payloads to the company/hvac/things/1 topic
 
@@ -156,6 +162,11 @@ parser.add_argument('--sensor-temp', default=24.0, help="Target temperature")
 parser.add_argument('--sensor-hum', default=69.0, help="Target humidity")
 parser.add_argument('--pattern', default='constant', help="Random generated pattern. options: constant | random | increase | decrease")
 parser.add_argument('--random-factor', default=1, help="Random factor")
+parser.add_argument('--customer', required=True, help="customer name")
+parser.add_argument('--branch', required=True, help="branch name")
+parser.add_argument('--lat', required=True, help="latitude")
+parser.add_argument('--lon', required=True, help="longitude")
+
 
 # Using globals to simplify sample code
 args = parser.parse_args()
@@ -200,5 +211,5 @@ for i in range(0, int(args.count)):
     add_plugin(body, recent_body)
     recent_body = body
 
-    #requests.post(URL, json=body)
+    requests.post(URL, json=body)
     print(body)
