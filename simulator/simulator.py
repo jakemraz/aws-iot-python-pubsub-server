@@ -17,7 +17,7 @@ def convert_to_iso_time(epochtime):
     return datetime.datetime.fromtimestamp(epochtime).astimezone().isoformat()
 
 
-def generate_constant_data(args):
+def generate_common_data(args):
     ret = {
         "topic":f'company/hvac/things/{args.thing_no}',
         "payload": {
@@ -29,16 +29,20 @@ def generate_constant_data(args):
                 "status": args.target_status,
                 "temperature": float(args.target_temp),
                 "humidity": float(args.target_hum)
-            },
-            "sensorValue": {
-                "temperature": float(args.sensor_temp),
-                "humidity": float(args.sensor_hum)
             }
         }
     }
     return ret
 
-def generate_random_data(args):
+def add_constant_data(data, args):
+    sensor_value = {
+                "temperature": float(args.sensor_temp),
+                "humidity": float(args.sensor_hum)
+            }
+
+    data['payload']['sensorValue'] = sensor_value
+
+def add_random_data(data, args):
     targetHumidity = float(args.target_hum)
     sensorHumidity = float(args.sensor_hum)
     targetTemperature = float(args.target_temp)
@@ -47,27 +51,15 @@ def generate_random_data(args):
     gapHumidity = abs(targetHumidity - sensorHumidity)
     gapTemperature = abs(targetTemperature - sensorTemperature)
 
-    ret = {
-        "topic":f'company/hvac/things/{args.thing_no}',
-        "payload": {
-            "UUID": str(uuid4()),
-            "type": "hvac",
-            "deviceId": args.thing_no,
-            "dateTime": convert_to_iso_time(epochtime + i * int(args.interval) * 60),
-            "targetValue": {
-                "status": args.target_status,
-                "temperature": float(args.target_temp),
-                "humidity": float(args.target_hum)
-            },
-            "sensorValue": {
-                "temperature": float(args.target_temp) + int(random() * 10) - 5,
-                "humidity": float(args.target_hum) + int(random() * 10) - 5
-            }
-        }
-    }
-    return ret
+    random_factor = int(args.random_factor)
 
-def generate_increase_data(i, args):
+    sensor_value = {
+                "temperature": float(args.target_temp) + int(random() * random_factor * 2) - random_factor,
+                "humidity": float(args.target_hum) + int(random() * random_factor * 2) - random_factor
+            }
+    data['payload']['sensorValue'] = sensor_value
+
+def add_increase_data(data, i, args):
     targetCount = int(args.count) - 1
     if targetCount == 0:
         targetCount = 1
@@ -76,28 +68,13 @@ def generate_increase_data(i, args):
     targetTemperature = float(args.target_temp)
     sensorTemperature = float(args.sensor_temp)
 
-
-    ret = {
-        "topic":f'company/hvac/things/{args.thing_no}',
-        "payload": {
-            "UUID": str(uuid4()),
-            "type": "hvac",
-            "deviceId": args.thing_no,
-            "dateTime": convert_to_iso_time(epochtime + i * int(args.interval) * 60),
-            "targetValue": {
-                "status": args.target_status,
-                "temperature": targetTemperature,
-                "humidity": targetHumidity
-            },
-            "sensorValue": {
+    sensor_value = {
                 "temperature": sensorTemperature + (targetTemperature - sensorTemperature) * i / targetCount,
                 "humidity": sensorHumidity + (targetHumidity - sensorHumidity) * i / targetCount,
             }
-        }
-    }
-    return ret
+    data['payload']['sensorValue'] = sensor_value
 
-def generate_decrease_data(i, args):
+def add_decrease_data(data, i, args):
     targetCount = int(args.count) - 1
     if targetCount == 0:
         targetCount = 1
@@ -106,45 +83,30 @@ def generate_decrease_data(i, args):
     targetTemperature = float(args.target_temp)
     sensorTemperature = float(args.sensor_temp)
 
-
-    ret = {
-        "topic":f'company/hvac/things/{args.thing_no}',
-        "payload": {
-            "UUID": str(uuid4()),
-            "type": "hvac",
-            "deviceId": args.thing_no,
-            "dateTime": convert_to_iso_time(epochtime + i * int(args.interval) * 60),
-            "targetValue": {
-                "status": args.target_status,
-                "temperature": targetTemperature,
-                "humidity": targetHumidity
-            },
-            "sensorValue": {
+    sensor_value = {
                 "temperature": targetTemperature - (targetTemperature - sensorTemperature) * i / targetCount,
                 "humidity": targetHumidity - (targetHumidity - sensorHumidity) * i / targetCount,
             }
-        }
-    }
-    return ret
-
+    body['payload']['sensorValue'] = sensor_value
 
 
 def generate_data(i, args):
+    data = generate_common_data(args)
     if args.pattern == 'constant':
-        return generate_constant_data(args)
+        add_constant_data(data, args)
     if args.pattern == 'random':
-        return generate_random_data(args)
+        add_random_data(data, args)
     if args.pattern == 'increase':
-        return generate_increase_data(i, args)
+        add_increase_data(data, i, args)
     if args.pattern == 'decrease':
-        return generate_decrease_data(i, args)
-    return generate_random_data(args)
+        add_decrease_data(data, i, args)
+    return data
 
-def add_information(body, recent_body):
+def add_plugin(body, recent_body):
     diffTemperature = abs(body['payload']['targetValue']['temperature'] - body['payload']['sensorValue']['temperature'])
     diffHumidity = abs(body['payload']['targetValue']['humidity'] - body['payload']['sensorValue']['humidity'])
     
-    temperature_threshold = 1
+    temperature_threshold = 2
     humidity_threshold = 5
     symtom_duration_min_threshold = 30
 
@@ -193,6 +155,7 @@ parser.add_argument('--target-hum', default=70.0, help="Target humidity")
 parser.add_argument('--sensor-temp', default=24.0, help="Target temperature")
 parser.add_argument('--sensor-hum', default=69.0, help="Target humidity")
 parser.add_argument('--pattern', default='constant', help="Random generated pattern. options: constant | random | increase | decrease")
+parser.add_argument('--random-factor', default=1, help="Random factor")
 
 # Using globals to simplify sample code
 args = parser.parse_args()
@@ -234,7 +197,7 @@ recent_body = {}
 
 for i in range(0, int(args.count)):
     body = generate_data(i, args)
-    add_information(body, recent_body)
+    add_plugin(body, recent_body)
     recent_body = body
 
     #requests.post(URL, json=body)
