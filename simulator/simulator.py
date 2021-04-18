@@ -18,6 +18,11 @@ def convert_to_iso_time(epochtime):
 
 
 def generate_common_data(args):
+
+    
+    power = int(args.power)
+    power_rand_factor = power / 40
+
     ret = {
         "topic":f'company/hvac/things/{args.thing_no}',
         "payload": {
@@ -27,6 +32,7 @@ def generate_common_data(args):
             "dateTime": convert_to_iso_time(epochtime + i * int(args.interval) * 60),
             "customer": args.customer,
             "branch": args.branch,
+            "power_consumption": int(args.power) + (random() * power_rand_factor * 2) - power_rand_factor,
             "geoLocation": {
                 "lat":args.lat,
                 "lon":args.lon
@@ -166,6 +172,7 @@ parser.add_argument('--customer', required=True, help="customer name")
 parser.add_argument('--branch', required=True, help="branch name")
 parser.add_argument('--lat', required=True, help="latitude")
 parser.add_argument('--lon', required=True, help="longitude")
+parser.add_argument('--power', default=180, help="power consumption")
 
 
 # Using globals to simplify sample code
